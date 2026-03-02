@@ -19,34 +19,27 @@ theorem Ideal.Quotient.isLocalRing {R : Type*} [CommRing R] [IsLocalRing R] {I :
   have : Nontrivial (R ⧸ I) := Ideal.Quotient.nontrivial_iff.mpr hI
   exact IsLocalRing.of_surjective (Ideal.Quotient.mk I) Ideal.Quotient.mk_surjective
 
--- aristotle
+theorem Ideal.IsMaximal.exists_inv_pow {α : Type*} [CommRing α] {I : Ideal α} (hI : I.IsMaximal)
+    {x : α} (hx : x ∉ I) (n : ℕ) : ∃ (y : α), ∃ i ∈ I ^ n, y * x + i = 1 := by
+  obtain ⟨y, i, hmem, hi⟩ := Ideal.IsMaximal.exists_inv hI hx
+  obtain ⟨y, hy⟩ : ∃ y : α, y * x + i ^ n = 1 := by
+    induction n with
+    | zero => exact ⟨0, by simp⟩
+    | succ n ih =>
+      obtain ⟨z, hz⟩ := ih
+      exact ⟨z * i + y, by linear_combination hz * i + hi⟩
+  exact ⟨y, i ^ n, Ideal.pow_mem_pow hmem n, hy⟩
+
 theorem Ideal.Quotient.isUnit_mk_pow_of_not_mem {R : Type*} [CommRing R]
-    {p : Ideal R} [p.IsMaximal] (n : ℕ) {s : R} (hs : s ∉ p) :
+    {p : Ideal R} [hI : p.IsMaximal] (n : ℕ) {s : R} (hs : s ∉ p) :
     IsUnit (Ideal.Quotient.mk (p ^ n) s) := by
-  have h_coprime : Ideal.span {s} + p = ⊤ := by
-    exact ( ‹Ideal.IsMaximal p›.1.2 ) _ ( lt_of_le_of_ne ( le_sup_right ) fun h => hs <| h.symm
-    ▸ Ideal.mem_sup_left ( Ideal.mem_span_singleton_self s ) )
-  obtain ⟨a, x, hx⟩ : ∃ a x : R, a * s + x = 1 ∧ x ∈ p := by
-    rw [ Ideal.eq_top_iff_one ] at h_coprime
-    rcases Submodule.mem_sup.mp h_coprime with ⟨ a, ha, b, hb, hab ⟩
-    rw [ Ideal.mem_span_singleton' ] at ha
-    aesop;
-  have h_pow : (1 - a * s) ^ n ∈ p ^ n := by
-    simpa [ ← hx.1 ] using Ideal.pow_mem_pow ( show 1 - a * s ∈ p from by
-      simpa [ eq_sub_of_add_eq hx.1 ] using hx.2 ) n;
-  have h_expand : ∃ y : R, 1 + s * y ∈ p ^ n := by
-    have h_expand : ∃ y : R, (1 - a * s) ^ n = 1 + s * y := by
-      induction n with
-      | zero => exact ⟨ 0, by simp +decide ⟩;
-      | succ n ih =>
-          refine ⟨ -a * ( ∑ i ∈ Finset.range ( n + 1 ), ( 1 - a * s ) ^ i ), ?_⟩
-          linear_combination' ( geom_sum_mul_neg ( 1 - a * s ) ( n + 1 ) )
-    aesop
-  obtain ⟨ y, hy ⟩ := h_expand
-  refine isUnit_iff_exists_inv.mpr ⟨ Ideal.Quotient.mk ( p ^ n ) ( -y ), ?_⟩
-  erw [ Ideal.Quotient.eq ]
-  convert Submodule.neg_mem _ hy using 1
-  ring
+  obtain ⟨y, i, hmem, hi⟩ := Ideal.IsMaximal.exists_inv_pow hI hs n
+  rw [isUnit_iff_exists_inv']
+  use Ideal.Quotient.mk (p ^ n) y
+  convert congr(Ideal.Quotient.mk (p ^ n) $hi)
+  rw [map_add, map_mul, Ideal.Quotient.eq_zero_iff_mem.mpr hmem, add_zero]
+
+-- also take a look at Ideal.IsPrime.mul_mem_pow
 
 -- aristotle
 theorem mem_pow_of_mul_mem_pow_of_isMaximal {R : Type*} [CommRing R]
@@ -58,7 +51,22 @@ theorem mem_pow_of_mul_mem_pow_of_isMaximal {R : Type*} [CommRing R]
   obtain ⟨v, rfl⟩ := Ideal.Quotient.mk_surjective u
   simp_all [ mul_assoc , ← Ideal.Quotient.eq_zero_iff_mem ]
 
-/-def IsLocalization.AtPrime.equivQuotMaximalIdealPow' {R : Type*} [CommRing R] (p : Ideal R)
+/-theorem IsLocalization.AtPrime.to_map_mem_maximal_pow_iff {R : Type u_1} [CommSemiring R]
+    (S : Type u_2) [CommSemiring S] [Algebra R S] (I : Ideal R) [hI : I.IsPrime]
+    [IsLocalization.AtPrime S I] (x : R) (n : ℕ) (h : IsLocalRing S) :
+    (algebraMap R S) x ∈ IsLocalRing.maximalIdeal S ^ n ↔ x ∈ I ^ n := by
+  simp
+  sorry
+
+theorem IsLocalization.AtPrime.comap_maximalIdeal_pow {R : Type*} [CommSemiring R] (S : Type*)
+    [CommSemiring S] [Algebra R S] (I : Ideal R) [hI : I.IsPrime] [IsLocalization.AtPrime S I]
+    (n : ℕ) (h : IsLocalRing S) :
+    Ideal.comap (algebraMap R S) (IsLocalRing.maximalIdeal S ^ n) = I ^ n := by
+  ext x
+  simp []
+  sorry
+
+def IsLocalization.AtPrime.equivQuotMaximalIdealPow' {R : Type*} [CommRing R] (p : Ideal R)
     [p.IsMaximal] (Rₚ : Type*) [CommRing Rₚ] [Algebra R Rₚ] [IsLocalization.AtPrime Rₚ p]
     [IsLocalRing Rₚ] (n : ℕ) :
     R ⧸ p ^ n ≃+* Rₚ ⧸ IsLocalRing.maximalIdeal Rₚ ^ n := by
@@ -71,7 +79,36 @@ theorem mem_pow_of_mul_mem_pow_of_isMaximal {R : Type*} [CommRing R]
 
 
     sorry
-  · sorry-/
+  · sorry
+
+open IsLocalRing in
+def IsLocalization.AtPrime.equivQuotMaximalIdeal'
+   {R : Type u_7} [CommRing R] (p : Ideal R) [p.IsMaximal] (Rₚ : Type u_8)
+   [CommRing Rₚ] [Algebra R Rₚ] [IsLocalization.AtPrime Rₚ p] [IsLocalRing Rₚ] :
+   R ⧸ p ≃+* Rₚ ⧸ maximalIdeal Rₚ := by
+  refine (Ideal.quotEquivOfEq ?_).trans
+    (RingHom.quotientKerEquivOfSurjective (f := algebraMap R (Rₚ ⧸ maximalIdeal Rₚ)) ?_)
+  · rw [IsScalarTower.algebraMap_eq R Rₚ, ← RingHom.comap_ker,
+      Ideal.Quotient.algebraMap_eq, Ideal.mk_ker, IsLocalization.AtPrime.comap_maximalIdeal Rₚ p]
+  · intro x
+    obtain ⟨x, rfl⟩ := Ideal.Quotient.mk_surjective x
+    obtain ⟨x, s, rfl⟩ := IsLocalization.exists_mk'_eq p.primeCompl x
+    let : Field (R ⧸ p) := Ideal.Quotient.field p
+    obtain ⟨s', hs⟩ := Ideal.Quotient.mk_surjective (I := p) (Ideal.Quotient.mk p s)⁻¹
+    simp only [IsScalarTower.algebraMap_eq R Rₚ (Rₚ ⧸ _),
+      Ideal.Quotient.algebraMap_eq, RingHom.comp_apply]
+    use x * s'
+    rw [← sub_eq_zero, ← map_sub, Ideal.Quotient.eq_zero_iff_mem]
+    have : algebraMap R Rₚ s ∉ maximalIdeal Rₚ := by
+      rw [← Ideal.mem_comap, IsLocalization.AtPrime.comap_maximalIdeal Rₚ p]
+      exact s.prop
+    refine ((inferInstanceAs <| (maximalIdeal Rₚ).IsPrime).mem_or_mem ?_).resolve_left this
+    rw [mul_sub, IsLocalization.mul_mk'_eq_mk'_of_mul, IsLocalization.mk'_mul_cancel_left,
+      ← map_mul, ← map_sub, ← Ideal.mem_comap, IsLocalization.AtPrime.comap_maximalIdeal Rₚ p,
+      mul_left_comm, ← Ideal.Quotient.eq_zero_iff_mem, map_sub, map_mul, map_mul, hs,
+      mul_inv_cancel₀, mul_one, sub_self]
+    rw [Ne, Ideal.Quotient.eq_zero_iff_mem]
+    exact s.prop-/
 
 def IsLocalization.AtPrime.equivQuotMaximalIdealPow {R : Type*} [CommRing R] (p : Ideal R)
     [p.IsMaximal] (Rₚ : Type*) [CommRing Rₚ] [Algebra R Rₚ] [IsLocalization.AtPrime Rₚ p]
@@ -1017,7 +1054,7 @@ def quotQuotEquivₐ (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (n : ℕ) :
     (Ideal.span {K}) :=
   AlgEquiv.ofRingEquiv (f := quotQuotEquiv K P n) (fun _ ↦ rfl)
 
-theorem rank_quot𝔪 (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0) (n : ℕ) (h : K.mult P ≤ n) :
+theorem rank_quot𝔪 {K : 𝕜[X,Y]} {P : Fin 2 → 𝕜} (hP : K.eval P = 0) {n : ℕ} (h : K.mult P ≤ n) :
     Module.rank 𝕜 (𝒪 K P hP ⧸ 𝔪[K, P, hP] ^ n) =
     K.natMult P * n - K.natMult P * (K.natMult P - 1) / 2 := by
   have hn0 : n ≠ 0 := by
@@ -1098,8 +1135,86 @@ theorem rank_quot𝔪 (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0) (
     zify [hn1, hnm1, hmn, hnm2, hm1]
     ring
 
+instance {K : 𝕜[X,Y]} : Module (𝕜[X,Y] ⧸ Ideal.span {K}) (𝕜[X,Y] ⧸ Ideal.span {K}) := inferInstance
+
+theorem Submodule.rank_quotient_add_rank'.{u} {R : Type*} {M : Type u} [Ring R] [AddCommGroup M]
+    [Module R M] [HasRankNullity.{u} R]
+    {S : Type*} [Ring S] [SMul R S] [Module S M] [IsScalarTower R S M]
+    (N : Submodule S M) :
+    Module.rank R (M ⧸ N) + Module.rank R N = Module.rank R M := by
+  exact (N.restrictScalars R).rank_quotient_add_rank
+
+set_option synthInstance.maxHeartbeats 400000 in
+-- Somehow slow
+abbrev _root_.𝔪Quot𝔪 (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0) (n : ℕ) :=
+    Submodule.map (𝔪[K, P, hP] ^ (n + 1)).mkQ (𝔪[K, P, hP] ^ n)
+
+-- dim[𝕜] (𝔪[K, P] ^ n ⧸ 𝔪[K, P] ^ (n + 1)) = K.natMult P
+set_option maxHeartbeats 400000 in
+-- Somehow slow
+theorem _root_.rank_𝔪Quot𝔪 {K : 𝕜[X,Y]} {P : Fin 2 → 𝕜} (hP : K.eval P = 0) {n : ℕ}
+    (h : K.mult P ≤ n) :
+    Module.rank 𝕜 (𝔪Quot𝔪 K P hP n) = K.natMult P := by
+  have hm1 : 1 ≤ K.natMult P := by
+    rw [← MvPolynomial.one_le_mult_iff] at hP
+    unfold natMult
+    rw [← ENat.coe_le_coe]
+    rw [ENat.coe_toNat (fun h' ↦ by simp [h'] at h)]
+    exact hP
+  have hm0 : 0 < K.natMult P :=
+    (Nat.pos_iff_ne_zero.mpr (Nat.one_le_iff_ne_zero.mp hm1))
+  have hmn : K.natMult P ≤ n := by
+    obtain h := (ENat.coe_toNat_le_self _).trans h
+    unfold natMult
+    simpa using h
+  obtain heq := congr($(((Submodule.quotientQuotientEquivQuotient
+    (𝔪[K, P, hP] ^ (n + 1)) (𝔪[K, P, hP] ^ n)
+    (Ideal.pow_le_pow_right (by simp))).restrictScalars 𝕜).rank_eq) +
+    Module.rank 𝕜 (𝔪Quot𝔪 K P hP n))
+  rw [Submodule.rank_quotient_add_rank'] at heq
+  rw [rank_quot𝔪 hP (h.trans (by simp))] at heq
+  rw [rank_quot𝔪 hP h] at heq
+  obtain haleph0 | haleph0 := le_or_gt Cardinal.aleph0 (Module.rank 𝕜 (𝔪Quot𝔪 K P hP n))
+  · rw [Cardinal.add_eq_max' haleph0] at heq
+    obtain h' := haleph0.trans (heq ▸ le_max_right _ _)
+    contrapose! h'
+    simp
+  · obtain ⟨u, hu⟩ := Cardinal.lt_aleph0.mp haleph0
+    rw [hu] at ⊢ heq
+    norm_cast at heq ⊢
+    rw [← Nat.sub_eq_iff_eq_add' (by
+      apply Nat.sub_le_sub_right
+      rw [Nat.mul_le_mul_left_iff hm0]
+      simp)] at heq
+    rw [← heq]
+    rw [Nat.sub_sub_sub_cancel_right (by
+      rw [← Nat.mul_le_mul_right_iff (show 0 < 2 by simp)]
+      rw [Nat.div_mul_cancel (by apply Nat.two_dvd_mul_sub_one)]
+      rw [mul_assoc]
+      rw [Nat.mul_le_mul_left_iff hm0]
+      apply (Nat.sub_le _ _).trans (hmn.trans (Nat.le_mul_of_pos_right _ (by simp))))]
+    rw [← Nat.mul_sub]
+    simp
+
+
 end Th4_6
 
+namespace Th4_7
 
---example (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0) (n : ℕ) :=
---    Submodule.comap (Submodule.subtype (𝔪[K, P, hP] ^ n)) (𝔪[K, P, hP] ^ (n + 1))
+
+-- This doesn't type check. IsDiscreteValuationRing requires `𝒪 K P hP` to be a domain to even state
+-- For `𝒪 K P hP`, a localization of `Γ[𝕜, K]`, to be a domain, we can try letting `Γ[𝕜, K]` to be a
+-- domain, but this requires `K` to be prime, i.e. a irreducible curve
+/-theorem _root_.nonsingular_iff_IsDiscreteValuationRing [IsAlgClosed 𝕜]
+    {K : 𝕜[X,Y]} {P : Fin 2 → 𝕜} (hP : K.eval P = 0) :
+    K.natMult P = 1 ↔ IsDiscreteValuationRing (𝒪 K P hP) := by
+  sorry-/
+
+end Th4_7
+
+instance (P : Fin 2 → 𝕜) : (Ideal.span {(X 0 - C (P 0) : 𝕜[X,Y]), X 1 - C (P 1)}).IsMaximal := by
+  convert MvPolynomial.isMaximal_span P
+  aesop
+
+abbrev 𝒪2 (P : Fin 2 → 𝕜) :=
+  Localization.AtPrime (Ideal.span { (X 0 - C (P 0) : 𝕜[X,Y]), (X 1 - C (P 1)) })
