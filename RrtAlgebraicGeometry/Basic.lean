@@ -43,13 +43,15 @@ theorem Ideal.Quotient.isUnit_mk_pow_of_not_mem {R : Type*} [CommRing R]
 
 -- aristotle
 theorem mem_pow_of_mul_mem_pow_of_isMaximal {R : Type*} [CommRing R]
-    {p : Ideal R} [p.IsMaximal] {n : ℕ} {s r : R}
-    (hs : s ∉ p) (h : s * r ∈ p ^ n) : r ∈ p ^ n := by
+    {p : Ideal R} [p.IsMaximal] {n : ℕ} {a b : R}
+    (hs : a ∉ p) (h : a * b ∈ p ^ n) : b ∈ p ^ n := by
   have := Ideal.Quotient.isUnit_mk_pow_of_not_mem n hs;
-  obtain ⟨ u, hu ⟩ := this.exists_left_inv
-  replace hu := congr_arg (fun x => x * Ideal.Quotient.mk ( p ^ n ) r) hu
-  obtain ⟨v, rfl⟩ := Ideal.Quotient.mk_surjective u
-  simp_all [ mul_assoc , ← Ideal.Quotient.eq_zero_iff_mem ]
+  obtain ⟨c, hc⟩ := this.exists_left_inv
+  replace hc := congr_arg (fun x => x * Ideal.Quotient.mk ( p ^ n ) b) hc
+  obtain ⟨c', rfl⟩ := Ideal.Quotient.mk_surjective c
+  simp_rw [← map_mul, mul_assoc] at hc
+  rw [Ideal.Quotient.eq_zero_iff_mem.mpr (Ideal.mul_mem_left _ _ h)] at hc
+  simpa [Ideal.Quotient.eq_zero_iff_mem] using hc.symm
 
 /-theorem IsLocalization.AtPrime.to_map_mem_maximal_pow_iff {R : Type u_1} [CommSemiring R]
     (S : Type u_2) [CommSemiring S] [Algebra R S] (I : Ideal R) [hI : I.IsPrime]
