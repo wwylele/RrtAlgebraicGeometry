@@ -1,4 +1,11 @@
+/-
+Copyright (c) 2026 Weiyi Wang. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Weiyi Wang
+-/
 import Mathlib
+
+/-! -/
 
 open MvPolynomial
 
@@ -19,39 +26,8 @@ theorem Ideal.Quotient.isLocalRing {R : Type*} [CommRing R] [IsLocalRing R] {I :
   have : Nontrivial (R ⧸ I) := Ideal.Quotient.nontrivial_iff.mpr hI
   exact IsLocalRing.of_surjective (Ideal.Quotient.mk I) Ideal.Quotient.mk_surjective
 
-theorem Ideal.IsMaximal.exists_inv_pow {α : Type*} [CommRing α] {I : Ideal α} (hI : I.IsMaximal)
-    {x : α} (hx : x ∉ I) (n : ℕ) : ∃ (y : α), ∃ i ∈ I ^ n, y * x + i = 1 := by
-  obtain ⟨y, i, hmem, hi⟩ := Ideal.IsMaximal.exists_inv hI hx
-  obtain ⟨y, hy⟩ : ∃ y : α, y * x + i ^ n = 1 := by
-    induction n with
-    | zero => exact ⟨0, by simp⟩
-    | succ n ih =>
-      obtain ⟨z, hz⟩ := ih
-      exact ⟨z * i + y, by linear_combination hz * i + hi⟩
-  exact ⟨y, i ^ n, Ideal.pow_mem_pow hmem n, hy⟩
 
-theorem Ideal.Quotient.isUnit_mk_pow_of_not_mem {R : Type*} [CommRing R]
-    {p : Ideal R} [hI : p.IsMaximal] (n : ℕ) {s : R} (hs : s ∉ p) :
-    IsUnit (Ideal.Quotient.mk (p ^ n) s) := by
-  obtain ⟨y, i, hmem, hi⟩ := Ideal.IsMaximal.exists_inv_pow hI hs n
-  rw [isUnit_iff_exists_inv']
-  use Ideal.Quotient.mk (p ^ n) y
-  convert congr(Ideal.Quotient.mk (p ^ n) $hi)
-  rw [map_add, map_mul, Ideal.Quotient.eq_zero_iff_mem.mpr hmem, add_zero]
 
--- also take a look at Ideal.IsPrime.mul_mem_pow
-
--- aristotle
-theorem mem_pow_of_mul_mem_pow_of_isMaximal {R : Type*} [CommRing R]
-    {p : Ideal R} [p.IsMaximal] {n : ℕ} {a b : R}
-    (hs : a ∉ p) (h : a * b ∈ p ^ n) : b ∈ p ^ n := by
-  have := Ideal.Quotient.isUnit_mk_pow_of_not_mem n hs;
-  obtain ⟨c, hc⟩ := this.exists_left_inv
-  replace hc := congr_arg (fun x => x * Ideal.Quotient.mk ( p ^ n ) b) hc
-  obtain ⟨c', rfl⟩ := Ideal.Quotient.mk_surjective c
-  simp_rw [← map_mul, mul_assoc] at hc
-  rw [Ideal.Quotient.eq_zero_iff_mem.mpr (Ideal.mul_mem_left _ _ h)] at hc
-  simpa [Ideal.Quotient.eq_zero_iff_mem] using hc.symm
 
 /-theorem IsLocalization.AtPrime.to_map_mem_maximal_pow_iff {R : Type u_1} [CommSemiring R]
     (S : Type u_2) [CommSemiring S] [Algebra R S] (I : Ideal R) [hI : I.IsPrime]
@@ -112,59 +88,9 @@ def IsLocalization.AtPrime.equivQuotMaximalIdeal'
     rw [Ne, Ideal.Quotient.eq_zero_iff_mem]
     exact s.prop-/
 
-def IsLocalization.AtPrime.equivQuotMaximalIdealPow {R : Type*} [CommRing R] (p : Ideal R)
-    [p.IsMaximal] (Rₚ : Type*) [CommRing Rₚ] [Algebra R Rₚ] [IsLocalization.AtPrime Rₚ p]
-    [IsLocalRing Rₚ] (n : ℕ) :
-    R ⧸ p ^ n ≃+* Rₚ ⧸ IsLocalRing.maximalIdeal Rₚ ^ n := by
-  refine Subring.topEquiv.symm.trans <|
-    (RingEquiv.subringCongr ?_).trans <|
-    (IsLocalization.lift fun (u : p.primeCompl) ↦
-      (?_ : IsUnit (Ideal.Quotient.mk (p ^ n) u))).quotientKerEquivRange.symm.trans <|
-    Ideal.quotEquivOfEq ?_
-  · symm
-    rw [RingHom.range_eq_top, IsLocalization.lift_surjective_iff]
-    intro u
-    obtain ⟨x, hx⟩ := Ideal.Quotient.mk_surjective u
-    exact ⟨⟨x, 1⟩, by simp [hx]⟩
-  · apply Ideal.Quotient.isUnit_mk_pow_of_not_mem
-    exact u.prop
-  · ext x
-    obtain ⟨a, b, rfl⟩ := IsLocalization.exists_mk'_eq p.primeCompl x
-    suffices a ∈ p ^ n ↔ (algebraMap R Rₚ) a ∈ IsLocalRing.maximalIdeal Rₚ ^ n by
-      simpa [Ideal.Quotient.eq_zero_iff_mem, IsLocalization.mk'_mem_iff]
-    rw [← IsLocalization.AtPrime.map_eq_maximalIdeal p Rₚ, ← Ideal.map_pow,
-      IsLocalization.algebraMap_mem_map_algebraMap_iff p.primeCompl Rₚ]
-    constructor
-    · intro h
-      exact ⟨1, by simp, by simp [h]⟩
-    · rintro ⟨m, hm, h⟩
-      rw [Ideal.mem_primeCompl_iff] at hm
-      apply mem_pow_of_mul_mem_pow_of_isMaximal hm h
-
-@[simp]
-theorem RingEquiv.subringCongr_symm {R : Type u} [Ring R] {s t : Subring R} (h : s = t) :
-    (RingEquiv.subringCongr h).symm = RingEquiv.subringCongr (h.symm) := rfl
-
 @[simp]
 theorem RingEquiv.coe_subringCongr {R : Type u} [Ring R] {s t : Subring R} (h : s = t) (x : s) :
     (RingEquiv.subringCongr h x).val = x.val := rfl
-
-attribute [-simp] Ideal.Quotient.mk_algebraMap in
-@[simp]
-theorem IsLocalization.AtPrime.equivQuotMaximalIdealPow_apply_mk {R : Type*} [CommRing R]
-    (p : Ideal R)
-    [p.IsMaximal] (Rₚ : Type*) [CommRing Rₚ] [Algebra R Rₚ] [IsLocalization.AtPrime Rₚ p]
-    [IsLocalRing Rₚ] (n : ℕ) (x : R) :
-    (equivQuotMaximalIdealPow p Rₚ n) (Ideal.Quotient.mk (p ^ n) x) =
-    Ideal.Quotient.mk ((IsLocalRing.maximalIdeal Rₚ) ^ n) (algebraMap R Rₚ x) := by
-  simp only [equivQuotMaximalIdealPow, RingEquiv.coe_trans, Function.comp_apply]
-  rw [← RingEquiv.eq_symm_apply]
-  rw [RingEquiv.symm_apply_eq]
-  simp only [RingHom.quotientKerEquivRange, Ideal.quotEquivOfEq_symm, Ideal.quotEquivOfEq_mk,
-    RingEquiv.coe_trans, Function.comp_apply, RingHom.quotientKerEquivOfSurjective_apply_mk]
-  rw [← RingEquiv.eq_symm_apply]
-  ext
-  simp
 
 def IsLocalization.AtPrime.equivQuotMaximalIdealPowₐ (k : Type*) [CommSemiring k]
     {R : Type*} [CommRing R] (p : Ideal R) [Algebra k R]
@@ -297,10 +223,6 @@ theorem MvPolynomial.order_zero {σ R : Type*} [Fintype σ] [CommRing R] :
   simp [order]
 
 @[simp]
-theorem ENat.sum_eq_top {ι : Type*} {s : Finset ι} {f : ι → ℕ∞} :
-    ∑ i ∈ s, f i = ⊤ ↔ ∃ i ∈ s, f i = ⊤ := WithTop.sum_eq_top
-
-@[simp]
 theorem MvPolynomial.order_eq_zero_iff {σ R : Type*} [Fintype σ] [CommRing R]
     (p : MvPolynomial σ R) : p.order = ⊤ ↔ p = 0 := by
   simp [order, Finset.inf_eq_top_iff, MvPolynomial.eq_zero_iff]
@@ -313,7 +235,7 @@ theorem MvPolynomial.order_toMvPowerSeries {σ R : Type*} [Fintype σ] [CommRing
     apply Finset.le_inf
     intro d hd
     rw [mem_support_iff] at hd
-    convert MvPowerSeries.order_le hd
+    convert! MvPowerSeries.order_le hd
     rw [Finsupp.degree_eq_sum]
     norm_cast
   · apply MvPowerSeries.le_order
@@ -330,7 +252,7 @@ theorem MvPolynomial.le_order_X {σ R : Type*} [Fintype σ] [CommRing R] (i : σ
   apply Finset.le_inf
   intro j hj
   contrapose! hj
-  rw [ENat.lt_one_iff_eq_zero, Finset.sum_eq_zero_iff] at hj
+  rw [Order.lt_one_iff, Finset.sum_eq_zero_iff] at hj
   have hj : j = 0 := by
     ext k
     simpa using hj k
@@ -503,7 +425,7 @@ theorem Set.encard_preimage_sum_singleton (σ : Type*) [Fintype σ] (k : ℕ) :
     · intro h
       obtain ⟨a, ha₁, ha₂⟩ := h
       have h_sum : ∑ i : σ, x i = ∑ i : Fin (Fintype.card σ), a i := by
-        conv_rhs => rw [ ← Equiv.sum_comp ( Fintype.equivFin σ ) ] ; simp +decide [ ← ha₂ ] ;
+        conv_rhs => rw [ ← Equiv.sum_comp ( Fintype.equivFin σ ) ] ;
         rw [ ← ha₂ ];
       rw [ h_sum, ha₁.2 ];
     · intro hx
@@ -662,7 +584,7 @@ theorem MvPolynomial.le_mult_iff {σ R : Type*} [Fintype σ] [CommRing R] (p : M
     p ∈ Ideal.span (Set.range fun i ↦ X i - C (f i)) ^ n := by
   rw [← Ideal.apply_mem_of_equiv_iff (f := (MvPolynomial.translate f).toRingEquiv), Ideal.map_pow,
     Ideal.map_span, mult]
-  convert MvPolynomial.le_order_iff (MvPolynomial.translate f p) n
+  convert! MvPolynomial.le_order_iff (MvPolynomial.translate f p) n
   ext x
   simp [MvPolynomial.translate]
 
@@ -674,7 +596,7 @@ theorem MvPolynomial.one_le_mult_iff {σ R : Type*} [Fintype σ] [CommRing R] (p
 theorem MvPolynomial.eval_eq_zero_of_one_le_natMult
     {σ R : Type*} [Fintype σ] [CommRing R] {p : MvPolynomial σ R}
     {f : σ → R} (h : p.natMult f ≠ 0) : p.eval f = 0 := by
-  rw [← MvPolynomial.one_le_mult_iff, ENat.one_le_iff_ne_zero]
+  rw [← MvPolynomial.one_le_mult_iff, Order.one_le_iff_ne_zero]
   rw [natMult] at h
   exact (ne_of_apply_ne ENat.toNat fun a ↦ h a.symm).symm
 
@@ -800,6 +722,7 @@ theorem phi1_surjective (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0)
 
 -- The quotient on the left represents the ring of functions on a specific point, which
 -- intuitively is isomorphic to the field 𝕜 itself.
+set_option backward.isDefEq.respectTransparency false in
 abbrev phi2 (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (hP : K.eval P = 0) :
     (Γ[𝕜, K] ⧸ coordRingMaxIdeal K P) ≃ₐ[𝕜] 𝕜 :=
   AlgEquiv.ofBijective (Ideal.Quotient.liftₐ _ (phi1 K P hP) (by
@@ -826,7 +749,7 @@ theorem _root_.coordRingMaxIdeal_isMaximal (K : 𝕜[X,Y]) {P : Fin 2 → 𝕜} 
 theorem _root_.coordRingMaxIdeal_injOn (K : 𝕜[X,Y]) :
     Set.InjOn (coordRingMaxIdeal K) {P | K.eval P = 0} := by
   intro a ha b hb h
-  rw [Set.mem_setOf_eq] at ha hb
+  rw [Set.mem_ofPred_eq] at ha hb
   simp_rw [coordRingMaxIdeal_eq_map] at h
   rw [Ideal.ext_iff] at h
   have h (x : 𝕜[X,Y]) : x ∈ Ideal.span {X 0 - C (a 0), X 1 - C (a 1)} ⊔ Ideal.span {K} ↔
@@ -854,11 +777,11 @@ theorem _root_.coordRingMaxIdeal_bijOn [IsAlgClosed 𝕜] (K : 𝕜[X,Y]) :
     Set.BijOn (coordRingMaxIdeal K) {P | K.eval P = 0} {m | m.IsMaximal} := by
   refine ⟨?_, coordRingMaxIdeal_injOn K, ?_⟩
   · intro P hP
-    rw [Set.mem_setOf] at hP ⊢
+    rw [Set.mem_ofPred] at hP ⊢
     exact coordRingMaxIdeal_isMaximal K hP
   intro m hm
-  rw [Set.mem_setOf] at hm
-  simp_rw [Set.mem_image, Set.mem_setOf]
+  rw [Set.mem_ofPred] at hm
+  simp_rw [Set.mem_image, Set.mem_ofPred]
   let L := Γ[𝕜, K] ⧸ m
   let hL : Field L := ((Ideal.Quotient.maximal_ideal_iff_isField_quotient _).mp hm).toField
   let : Algebra 𝕜 L := inferInstance
@@ -941,7 +864,7 @@ def alpha (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (n : ℕ) (h : K.mult P ≤ n) :
     rw [← MvPolynomial.le_mult_iff] at ⊢ ha
     grw [← MvPolynomial.le_mult_mul, ← ha]
     push_cast
-    rw [natMult, ENat.coe_toNat htop]
+    rw [natMult, ENat.natCast_toNat htop]
     rw [add_tsub_cancel_of_le h]
   )
 
@@ -1035,7 +958,7 @@ def equiv (K : 𝕜[X,Y]) (P : Fin 2 → 𝕜) (n : ℕ) (h : K.mult P ≤ n) :
     rw [hset, ← MvPolynomial.le_mult_iff] at ⊢ h
     rw [MvPolynomial.mult_mul] at h
     push_cast
-    rw [natMult, ENat.coe_toNat htop]
+    rw [natMult, ENat.natCast_toNat htop]
     rw [tsub_le_iff_left]
     exact h
 
@@ -1062,18 +985,18 @@ theorem rank_quot𝔪 {K : 𝕜[X,Y]} {P : Fin 2 → 𝕜} (hP : K.eval P = 0) {
   have hn0 : n ≠ 0 := by
     rw [← MvPolynomial.one_le_mult_iff] at hP
     obtain h := hP.trans h
-    rw [ENat.one_le_iff_ne_zero] at h
+    rw [Order.one_le_iff_ne_zero] at h
     simpa using h
   have hn1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr hn0
   have hmn : K.natMult P ≤ n := by
-    obtain h := (ENat.coe_toNat_le_self _).trans h
+    obtain h := (ENat.natCast_toNat_le_self _).trans h
     unfold natMult
     simpa using h
   have hm1 : 1 ≤ K.natMult P := by
     rw [← MvPolynomial.one_le_mult_iff] at hP
     unfold natMult
-    rw [← ENat.coe_le_coe]
-    rw [ENat.coe_toNat (fun h' ↦ by simp [h'] at h)]
+    rw [← ENat.natCast_le_natCast]
+    rw [ENat.natCast_toNat (fun h' ↦ by simp [h'] at h)]
     exact hP
   rw [← (quot𝔪Equivₐ K P hP n).toLinearEquiv.rank_eq]
   rw [(quotQuotEquivₐ K P n).toLinearEquiv.rank_eq]
@@ -1160,13 +1083,13 @@ theorem _root_.rank_𝔪Quot𝔪 {K : 𝕜[X,Y]} {P : Fin 2 → 𝕜} (hP : K.ev
   have hm1 : 1 ≤ K.natMult P := by
     rw [← MvPolynomial.one_le_mult_iff] at hP
     unfold natMult
-    rw [← ENat.coe_le_coe]
-    rw [ENat.coe_toNat (fun h' ↦ by simp [h'] at h)]
+    rw [← ENat.natCast_le_natCast]
+    rw [ENat.natCast_toNat (fun h' ↦ by simp [h'] at h)]
     exact hP
   have hm0 : 0 < K.natMult P :=
     (Nat.pos_iff_ne_zero.mpr (Nat.one_le_iff_ne_zero.mp hm1))
   have hmn : K.natMult P ≤ n := by
-    obtain h := (ENat.coe_toNat_le_self _).trans h
+    obtain h := (ENat.natCast_toNat_le_self _).trans h
     unfold natMult
     simpa using h
   obtain heq := congr($(((Submodule.quotientQuotientEquivQuotient
