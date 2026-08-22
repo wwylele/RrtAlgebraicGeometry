@@ -1,1 +1,3 @@
 import RrtAlgebraicGeometry.Basic
+import RrtAlgebraicGeometry.Intersection
+import RrtAlgebraicGeometry.MvPolynomial
